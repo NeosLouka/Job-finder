@@ -1,7 +1,10 @@
-package org.example.ATS_source.greenhouse;
+package org.example.ATS_source.greenhouse.boardTokens;
 
-import org.example.ATS_source.TokenRepository;
-import org.example.ATS_source.Utilities;
+import lombok.Getter;
+import org.example.ATS_source.util.TokenRepository;
+import org.example.ATS_source.util.Utilities;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URI;
@@ -9,22 +12,34 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
+@Getter
+@Component
 public class GreenhouseTools extends Utilities {
+
+    private final Set<String> boardTokens = ConcurrentHashMap.newKeySet();
 
     private final TokenRepository tokenRepository;
 
     private final Path OUTPUT = Path.of("data/greenhouse_tokens.txt");
 
-    private final Pattern JOB_URL_PATTERN = Pattern.compile(
-            "^/v1/boards/([^/]+)/jobs/?$"
-    );
+    private final Pattern JOB_URL_PATTERN = Pattern.compile("^/v1/boards/([^/]+)/jobs/?$");
 
     public GreenhouseTools(TokenRepository tokenRepository){
+
         this.tokenRepository = tokenRepository;
+
+        try {
+            this.boardTokens.addAll(loadExistingTokens(OUTPUT));
+        } catch (IOException e) {
+            System.err.println("Failed to pre-load tokens on startup: " + e.getMessage());
+        }
     }
 
     @Override
@@ -163,11 +178,12 @@ public class GreenhouseTools extends Utilities {
         }
     }
 
+    @Async
     public void findTokens() throws Exception{
 
-        Set<String> tokens = new HashSet<>(loadExistingTokens(OUTPUT));
+        boardTokens.addAll(loadExistingTokens(OUTPUT));
 
-        System.out.println("Already known: " + tokens.size());
+        System.out.println("Already known: " + boardTokens.size());
 
         //Wayback discovery
         Set<String> discovered = discoverFromWayback();
@@ -175,7 +191,7 @@ public class GreenhouseTools extends Utilities {
 
         for (String token : discovered) {
 
-            if (tokens.contains(token)) {
+            if (boardTokens.contains(token)) {
                 continue;
             }
 
@@ -185,7 +201,7 @@ public class GreenhouseTools extends Utilities {
 
                 System.out.println("VALID -> " + token);
 
-                tokens.add(token);
+                boardTokens.add(token);
 
                 tokenRepository.saveToken(token);
 
@@ -197,8 +213,18 @@ public class GreenhouseTools extends Utilities {
         }
 
         System.out.println("\nFinished.");
-        System.out.println("Total valid tokens: " + tokens.size());
+        System.out.println("Total valid tokens: " + boardTokens.size());
 
     }
+
+    public List<String> retrieveExistingTokens() throws IOException {
+        if (boardTokens.isEmpty()) {
+            boardTokens.addAll(loadExistingTokens(OUTPUT));
+        }
+
+        return new ArrayList<>(loadExistingTokens(OUTPUT));
+    }
+
+
 
 }

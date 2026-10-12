@@ -1,4 +1,4 @@
-package org.example.ATS_source;
+package org.example.ATS_source.util;
 
 import java.io.IOException;
 import java.net.URI;
@@ -95,8 +95,5 @@ public abstract class Utilities {
 
         return value.replace(" ", "%20");
     }
-
-
-
 
 }
