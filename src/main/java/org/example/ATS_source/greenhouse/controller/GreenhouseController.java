@@ -1,25 +1,24 @@
 package org.example.ATS_source.greenhouse.controller;
 
+import lombok.RequiredArgsConstructor;
 import org.example.ATS_source.greenhouse.dto.JobSearchRequest;
 import org.example.ATS_source.greenhouse.service.GreenhouseJobService;
+import org.example.ATS_source.llm.LayaService;
 import org.example.ATS_source.model.JobPosting;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/greenhouse")
+@RequiredArgsConstructor
 public class GreenhouseController {
 
     private final GreenhouseJobService greenhouseJobService;
+    private final LayaService layaService;
 
-    public GreenhouseController(
-            GreenhouseJobService greenhouseJobService
-    ) {
 
-        this.greenhouseJobService =
-                greenhouseJobService;
-    }
 
 
     /*
@@ -50,5 +49,26 @@ public class GreenhouseController {
                         boardToken,
                         request
                 );
+    }
+
+    @GetMapping("/companies")
+    public Set<String> retrieveCompanies(){
+
+        return greenhouseJobService.retrieveCompanies();
+    }
+
+
+    @PostMapping("/companies/{companyName}/search")
+    public List<JobPosting> evaluateCompany(
+            @PathVariable String companyName,
+            @RequestParam(defaultValue = "65") double matchPercentage,
+            @RequestBody JobSearchRequest request
+    ) {
+
+        return layaService.evaluateCompany(
+                companyName,
+                request,
+                matchPercentage
+        );
     }
 }

@@ -1,6 +1,7 @@
 package org.example.ATS_source.model;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record JobPosting(
 
@@ -20,7 +21,17 @@ public record JobPosting(
 
         String absoluteUrl,
 
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+
+        String description,
+
+        List<Office> offices
 
 ) {
+
+    public record Office(
+            String name,
+            String location
+    ) {
+    }
 }

@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.ATS_source.greenhouse.boardTokens.GreenhouseTools;
 import org.example.ATS_source.greenhouse.dto.GreenhouseJobsResponse;
 import org.example.ATS_source.greenhouse.dto.JobSearchRequest;
+import org.example.ATS_source.llm.LayaJobMatcher;
 import org.example.ATS_source.model.JobPosting;
+import org.example.candidate.CandidateProfileReader;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -26,7 +28,9 @@ public class GreenhouseJobService {
 
     public GreenhouseJobService(
             ObjectMapper objectMapper,
-            GreenhouseTools greenhouseTools
+            GreenhouseTools greenhouseTools,
+            LayaJobMatcher layaJobMatcher,
+            CandidateProfileReader candidateProfileReader
     ) {
 
         this.greenhouseTools = greenhouseTools;
@@ -36,7 +40,6 @@ public class GreenhouseJobService {
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
     }
-
 
     /*
      * Search every Greenhouse board that we have discovered.
@@ -81,6 +84,7 @@ public class GreenhouseJobService {
 
         return results;
     }
+
     /*
      * Search a single Greenhouse board.
      */
@@ -96,23 +100,19 @@ public class GreenhouseJobService {
             );
         }
 
-        List<JobPosting> results =
-                new ArrayList<>();
+        List<JobPosting> results = new ArrayList<>();
 
         try {
 
-            GreenhouseJobsResponse response =
-                    fetchCompanyJobs(boardToken);
+            GreenhouseJobsResponse response = fetchCompanyJobs(boardToken);
 
             if (response.jobs() == null) {
                 return results;
             }
 
-            for (GreenhouseJobsResponse.JobDto jobDto
-                    : response.jobs()) {
+            for (GreenhouseJobsResponse.JobDto jobDto : response.jobs()) {
 
-                JobPosting job =
-                        jobDto.toJobPosting(boardToken);
+                JobPosting job = jobDto.toJobPosting(boardToken);
 
                 if (filterJob(job, request)) {
                     results.add(job);
@@ -145,14 +145,12 @@ public class GreenhouseJobService {
     /*
      * Actual HTTP call to Greenhouse.
      */
-    private GreenhouseJobsResponse fetchCompanyJobs(
-            String boardToken
-    ) throws IOException, InterruptedException {
+    private GreenhouseJobsResponse fetchCompanyJobs(String boardToken) throws IOException, InterruptedException {
 
         String url =
                 "https://boards-api.greenhouse.io/v1/boards/"
                         + boardToken
-                        + "/jobs";
+                        + "/jobs?content=true";
 
         HttpRequest request =
                 HttpRequest.newBuilder()
@@ -200,11 +198,38 @@ public class GreenhouseJobService {
         }
 
         /*
+         * EXCLUDED TITLE TERMS
+         */
+        if (request.excludedTitleTerms() != null && !request.excludedTitleTerms().isEmpty()) {
+
+            boolean excludedTitle =
+                    request.excludedTitleTerms()
+                            .stream()
+                            .filter(term ->
+                                    term != null
+                                            && !term.isBlank()
+                            )
+                            .anyMatch(term ->
+
+                                    job.title() != null
+                                            &&
+                                            job.title()
+                                                    .toLowerCase(Locale.ROOT)
+                                                    .contains(
+                                                            term.toLowerCase(Locale.ROOT)
+                                                    )
+                            );
+
+            if (excludedTitle) {
+                return false;
+            }
+        }
+
+        /*
          * TITLE
          */
         if (
-                request.titles() != null
-                        && !request.titles().isEmpty()
+                request.titles() != null && !request.titles().isEmpty()
         ) {
 
             boolean titleMatch =
@@ -307,5 +332,48 @@ public class GreenhouseJobService {
         }
 
         return true;
+    }
+
+    public Set<String> retrieveCompanies() {
+        return greenhouseTools.getCompanies().keySet();
+    }
+
+    public List<JobPosting> findRequestRelatedJobsByCompany(
+            String companyName,
+            JobSearchRequest request
+    ) {
+
+        List<String> boardTokens = greenhouseTools
+                .getCompanies()
+                .get(findCompanyKey(companyName));
+
+        if (boardTokens == null) {
+            throw new RuntimeException(
+                    "Company not found: " + companyName
+            );
+        }
+
+        List<JobPosting> jobs = new ArrayList<>();
+
+        for (String boardToken : boardTokens) {
+
+            List<JobPosting> boardJobs = findRequestRelatedJobs( boardToken, request);
+
+            jobs.addAll(boardJobs);
+        }
+
+        return jobs;
+    }
+
+    private String findCompanyKey(String companyName) {
+
+        for (String company : greenhouseTools.getCompanies().keySet()) {
+
+            if (company.equalsIgnoreCase(companyName)) {
+                return company;
+            }
+        }
+
+        return null;
     }
 }

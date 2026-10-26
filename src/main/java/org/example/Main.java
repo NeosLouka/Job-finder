@@ -1,36 +1,33 @@
 package org.example;
 
 
-import org.example.ATS_source.greenhouse.service.GreenhouseJobService;
-import org.springframework.boot.CommandLineRunner;
+import org.example.ATS_source.greenhouse.boardTokens.GreenhouseTools;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.scheduling.annotation.EnableAsync;
 
-import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
 
 @EnableAsync
 @SpringBootApplication
 public class Main{
 
     public static void main(String[] args) {
-        SpringApplication.run(Main.class, args);
-    }
 
-//    @Bean
-//    public CommandLineRunner testService(GreenhouseJobService jobService) {
-//        return args -> {
-//            System.out.println(">>> Testing GreenhouseJobService from Main <<<");
-//
-//            try {
-//                // Call a method on your service here
-//                var response = jobService.fetchJobs("stripe");
-//                System.out.println("Successfully fetched jobs count: " + response.jobs().size());
-//            } catch (Exception e) {
-//                System.err.println("Test failed: " + e.getMessage());
-//                e.printStackTrace();
-//            }
-//        };
-//    }
+        ConfigurableApplicationContext context = SpringApplication.run(Main.class, args);
+
+        GreenhouseTools greenhouseTools = context.getBean(GreenhouseTools.class);
+
+        Map<String, List<String>> companies = greenhouseTools.getCompanies();
+
+        for (String company : companies.keySet()) {
+
+            List<String> tokens = companies.get(company);
+
+            System.out.println(company + " -> " + tokens);
+        }
+    }
 }

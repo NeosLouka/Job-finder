@@ -7,9 +7,11 @@ import java.util.List;
 
 public record JobSearchRequest(
         List<String> titles,
+        List<String> excludedTitleTerms,
         List<String> locations,
         String language,
         OffsetDateTime lastUpdated
 ) {
+
 
 }

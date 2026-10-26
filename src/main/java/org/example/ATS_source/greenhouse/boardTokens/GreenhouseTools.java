@@ -1,5 +1,7 @@
 package org.example.ATS_source.greenhouse.boardTokens;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
 import org.example.ATS_source.util.TokenRepository;
 import org.example.ATS_source.util.Utilities;
@@ -8,15 +10,16 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 
 @Getter
@@ -24,22 +27,40 @@ import java.util.regex.Pattern;
 public class GreenhouseTools extends Utilities {
 
     private final Set<String> boardTokens = ConcurrentHashMap.newKeySet();
-
+    private final Map<String, List<String>> companies = new ConcurrentSkipListMap<>();
     private final TokenRepository tokenRepository;
-
     private final Path OUTPUT = Path.of("data/greenhouse_tokens.txt");
-
     private final Pattern JOB_URL_PATTERN = Pattern.compile("^/v1/boards/([^/]+)/jobs/?$");
 
-    public GreenhouseTools(TokenRepository tokenRepository){
+    private final ObjectMapper objectMapper;
+    private final HttpClient httpClient;
+
+    public GreenhouseTools(
+            TokenRepository tokenRepository,
+            ObjectMapper objectMapper
+    ){
 
         this.tokenRepository = tokenRepository;
+        this.objectMapper = objectMapper;
+
+        this.httpClient = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
 
         try {
             this.boardTokens.addAll(loadExistingTokens(OUTPUT));
+            System.out.println("Loaded " + boardTokens.size() + " board tokens.");
+
         } catch (IOException e) {
             System.err.println("Failed to pre-load tokens on startup: " + e.getMessage());
         }
+
+        // Group tokens by company
+
+        this.companies.putAll(groupTokensByCompany());
+        System.out.println("Grouped tokens into " + companies.size() + " companies.");
+
+        mergeCompanies();
     }
 
     @Override
@@ -205,6 +226,8 @@ public class GreenhouseTools extends Utilities {
 
                 tokenRepository.saveToken(token);
 
+                addTokenToCompany(token);
+
             } else {
                 System.out.println("Dead/invalid -> " + token);
             }
@@ -225,6 +248,146 @@ public class GreenhouseTools extends Utilities {
         return new ArrayList<>(loadExistingTokens(OUTPUT));
     }
 
+    public List<String> putTokensInAlphabeticOrder() throws IOException {
+
+
+        List<String> tokens = retrieveExistingTokens();
+
+        Collections.sort(tokens); //Alphabetic order
+        System.out.println("Tokens shorted in alphabetic order.");
+
+        return tokens;
+    }
+
+    public Map<String, List<String>> groupTokensByCompany() {
+
+        List<String> tokens = new ArrayList<>(boardTokens);
+
+        Map<String, List<String>> groupedCompanies = new ConcurrentHashMap<>();
+
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+
+            for (String token : tokens) {
+
+                executor.submit(() -> {
+
+                    String companyName = getCompanyName(token);
+
+                    if (companyName == null || companyName.isBlank()) {
+                        return;
+                    }
+
+                    groupedCompanies.computeIfAbsent(
+                            companyName,
+                            key -> Collections.synchronizedList(new ArrayList<>())).add(token);
+                }
+                );
+            }
+        }
+
+
+        return new TreeMap<>(groupedCompanies);
+    }
+
+
+    private String getCompanyName(String token) {
+
+        try {
+
+            String url = "https://boards-api.greenhouse.io/v1/boards/" + token;
+
+            HttpRequest request = HttpRequest
+                    .newBuilder()
+                    .uri(URI.create(url))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient
+                    .send(
+                            request,
+                            HttpResponse.BodyHandlers.ofString()
+                    );
+
+            if (response.statusCode() != 200) {
+                return null;
+            }
+
+            JsonNode json = objectMapper
+                    .readTree(
+                            response.body()
+                    );
+
+            return json.path("name").asText();
+
+        } catch (Exception e) {
+
+            System.err.println("Failed company lookup for token: " + token);
+
+            return null;
+        }
+    }
+
+    private void addTokenToCompany(String token) {
+
+        String companyName = getCompanyName(token);
+
+        if (companyName == null || companyName.isBlank()) {
+            return;
+        }
+
+        companies.computeIfAbsent(companyName, key -> new ArrayList<>()).add(token);
+    }
+
+    public void mergeCompanies() {
+
+        Map<String, List<String>> mergedCompanies = new ConcurrentSkipListMap<>();
+
+        String previousCompany = null;
+        String previousFirstWord = null;
+
+
+        for (String company : companies.keySet()) {
+
+            List<String> tokens = companies.get(company);
+
+            if (previousCompany == null) {
+
+                mergedCompanies.put(company, new ArrayList<>(tokens));
+
+                previousCompany = company;
+
+                previousFirstWord = getFirstWord(company);
+
+                continue;
+            }
+
+
+            if (company.toLowerCase().contains(previousFirstWord.toLowerCase())) {
+
+                mergedCompanies.get(previousCompany).addAll(tokens);
+
+            } else {
+
+                mergedCompanies.put(company, new ArrayList<>(tokens));
+
+                previousCompany = company;
+
+                previousFirstWord = getFirstWord(company);
+            }
+        }
+
+
+        companies.clear();
+
+        companies.putAll(mergedCompanies);
+    }
+
+    private String getFirstWord(String companyName) {
+
+        return companyName
+                .trim()
+                .split("\\s+")[0];
+    }
 
 
 }

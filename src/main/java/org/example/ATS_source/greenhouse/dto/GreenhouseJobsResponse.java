@@ -37,7 +37,13 @@ public record GreenhouseJobsResponse(
             OffsetDateTime updatedAt,
 
             @JsonProperty("absolute_url")
-            String absoluteUrl
+            String absoluteUrl,
+
+            @JsonProperty("content")
+            String content,
+
+            @JsonProperty("offices")
+            List<OfficeDto> offices
 
     ) {
 
@@ -52,7 +58,18 @@ public record GreenhouseJobsResponse(
                     location != null ? location.name() : null,
                     language,
                     absoluteUrl,
-                    updatedAt
+                    updatedAt,
+                    content,
+                    offices != null
+                            ? offices.stream()
+                            .map(office ->
+                                    new JobPosting.Office(
+                                            office.name(),
+                                            office.location()
+                                    )
+                            )
+                            .toList()
+                            : List.of()
             );
         }
     }
@@ -60,6 +77,14 @@ public record GreenhouseJobsResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record LocationDto(
             String name
+    ) {
+    }
+
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record OfficeDto(
+            String name,
+            String location
     ) {
     }
 }

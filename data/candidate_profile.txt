@@ -1,0 +1,17 @@
+I am a junior software engineer and Computer Science graduate with around one year of professional experience working on backend services and production infrastructure.
+
+My main backend stack is Java and Spring Boot. I have experience building REST APIs, working with PostgreSQL, MySQL and Couchbase, and using Docker and Docker Compose.
+
+In my current professional experience, I have worked with Linux servers, OVH VPS infrastructure, Traefik, database migrations, automated backups, Docker deployments, restart policies, and basic production troubleshooting.
+
+For my Computer Science degree thesis, I designed and implemented a modular-monolith backend using Java, Spring Boot, Spring Modulith, PostgreSQL and Docker. I also worked with Spring Security, JWT, unit testing, application events, Prometheus, Grafana, Zipkin and Spring Boot Actuator.
+
+I also have introductory cloud experience with AWS, including Lambda, API Gateway, Step Functions, DynamoDB, S3, EventBridge and SES.
+
+My strongest areas are Java backend development, Spring Boot, Docker, Linux, databases and backend/infrastructure engineering.
+
+I am looking primarily for junior or early-career roles in backend engineering, Java development, infrastructure engineering, DevOps, cloud engineering, or related software engineering positions.
+
+I am not currently targeting senior, staff, lead, architect, or engineering management roles that require many years of professional experience.
+
+I am based in Greece and open to relocation. I speak Greek natively and English at C2 proficiency.
