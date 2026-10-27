@@ -10,7 +10,9 @@ public record JobSearchRequest(
         List<String> excludedTitleTerms,
         List<String> locations,
         String language,
-        OffsetDateTime lastUpdated
+        OffsetDateTime lastUpdated,
+        boolean europeOnly
+
 ) {
 
 

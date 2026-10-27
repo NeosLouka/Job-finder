@@ -14,6 +14,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -25,20 +26,25 @@ public class GreenhouseJobService {
     private final GreenhouseTools greenhouseTools;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private final EuropeanCountries europeanCountries;
 
     public GreenhouseJobService(
             ObjectMapper objectMapper,
             GreenhouseTools greenhouseTools,
             LayaJobMatcher layaJobMatcher,
-            CandidateProfileReader candidateProfileReader
+            CandidateProfileReader candidateProfileReader,
+            EuropeanCountries europeanCountries
     ) {
 
         this.greenhouseTools = greenhouseTools;
         this.objectMapper = objectMapper;
 
         this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(5))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
+
+        this.europeanCountries = europeanCountries;
     }
 
     /*
@@ -155,6 +161,7 @@ public class GreenhouseJobService {
         HttpRequest request =
                 HttpRequest.newBuilder()
                         .uri(URI.create(url))
+                        .timeout(Duration.ofSeconds(10))
                         .header(
                                 "Accept",
                                 "application/json"
@@ -195,6 +202,11 @@ public class GreenhouseJobService {
 
         if (request == null) {
             return true;
+        }
+
+        if (request.europeOnly() && !europeanCountries.isEuropeanLocation(job)) {
+
+            return false;
         }
 
         /*

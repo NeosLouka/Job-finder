@@ -7,8 +7,7 @@ import org.example.ATS_source.llm.LayaService;
 import org.example.ATS_source.model.JobPosting;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/greenhouse")
@@ -70,5 +69,82 @@ public class GreenhouseController {
                 request,
                 matchPercentage
         );
+    }
+
+    @GetMapping("/locations")
+    public Map<String, List<String>> getLocationFormats() {
+
+        JobSearchRequest request =
+                new JobSearchRequest(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        null,
+                        false
+                );
+
+        List<JobPosting> jobs = greenhouseJobService.searchAllBoardTokens(request);
+
+
+        Set<String> jobLocations = new TreeSet<>();
+
+        Set<String> officeNames = new TreeSet<>();
+
+        Set<String> officeLocations = new TreeSet<>();
+
+
+        for (JobPosting job : jobs) {
+
+            if (job.location() != null && !job.location().isBlank()) {
+
+                jobLocations.add(
+                        job.location()
+                );
+            }
+
+
+            if (job.offices() != null) {
+
+                for (JobPosting.Office office : job.offices()) {
+
+                    if (office.name() != null && !office.name().isBlank()) {
+
+                        officeNames.add(
+                                office.name()
+                        );
+                    }
+
+
+                    if (office.location() != null && !office.location().isBlank()) {
+
+                        officeLocations.add(
+                                office.location()
+                        );
+                    }
+                }
+            }
+        }
+
+
+        Map<String, List<String>> result =
+                new LinkedHashMap<>();
+
+        result.put(
+                "jobLocations",
+                new ArrayList<>(jobLocations)
+        );
+
+        result.put(
+                "officeNames",
+                new ArrayList<>(officeNames)
+        );
+
+        result.put(
+                "officeLocations",
+                new ArrayList<>(officeLocations)
+        );
+
+        return result;
     }
 }

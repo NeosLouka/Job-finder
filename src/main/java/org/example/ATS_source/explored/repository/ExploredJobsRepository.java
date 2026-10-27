@@ -15,33 +15,56 @@ import java.time.OffsetDateTime;
 @RequiredArgsConstructor
 public class ExploredJobsRepository {
 
-    private final Path root = Path.of("data", "explored");
+    private final Path root =
+            Path.of("data", "explored");
+
     private final ObjectMapper objectMapper;
 
 
     public void markExplored(JobPosting job) {
 
         if (isExplored(job)) {
+
             System.out.println(
-                    "Job already explored: " + job.title()
+                    "Job already explored: "
+                            + job.title()
             );
 
             return;
         }
 
+
         try {
 
-            Path companyFolder = getCompanyFolder(job);
+            Path companyFolder =
+                    getCompanyFolder(job);
 
-            Files.createDirectories(companyFolder);
+            Files.createDirectories(
+                    companyFolder
+            );
 
-            Path jobFile = getJobFile(job);
 
-            ObjectNode json = objectMapper.createObjectNode();
+            Path jobFile =
+                    getJobFile(job);
+
+
+            ObjectNode json =
+                    objectMapper.createObjectNode();
+
 
             json.put(
                     "externalId",
                     job.externalId()
+            );
+
+            json.put(
+                    "provider",
+                    job.provider().name()
+            );
+
+            json.put(
+                    "companyName",
+                    job.companyName()
             );
 
             json.put(
@@ -69,7 +92,6 @@ public class ExploredJobsRepository {
                             json
                     );
 
-
         } catch (IOException e) {
 
             throw new RuntimeException(
@@ -80,41 +102,77 @@ public class ExploredJobsRepository {
     }
 
 
-
-    public boolean isExplored(JobPosting job) {
-
-        Path jobFile = getJobFile(job);
-
-        return Files.exists(jobFile);
-    }
-
-
-    private Path getJobFile(JobPosting job) {
-
-        return getCompanyFolder(job)
-                .resolve(
-                        job.externalId()
-                                + ".json"
-                );
-    }
-
-    private Path getCompanyFolder(JobPosting job) {
-
-        String companyName = sanitizeFileName(job.companyName());
-
-        return root.resolve(companyName);
-    }
-
-
-
-    private String sanitizeFileName(
-            String name
+    public boolean isExplored(
+            JobPosting job
     ) {
 
-        return name.replaceAll(
-                "[\\\\/:*?\"<>|]",
-                "_"
+        return Files.exists(
+                getJobFile(job)
         );
     }
 
+
+    private Path getJobFile(
+            JobPosting job
+    ) {
+
+        String externalId =
+                sanitizeFileName(
+                        job.externalId()
+                );
+
+        return getCompanyFolder(job)
+                .resolve(
+                        externalId + ".json"
+                );
+    }
+
+
+    private Path getCompanyFolder(
+            JobPosting job
+    ) {
+
+        String companyName =
+                sanitizeFileName(
+                        job.companyName()
+                );
+
+        return root
+                .resolve(
+                        job.provider().name()
+                )
+                .resolve(
+                        companyName
+                );
+    }
+
+
+    private String sanitizeFileName(String name) {
+
+        if (name == null || name.isBlank()) {
+            return "unknown";
+        }
+
+        String sanitized = name
+                .strip()
+                .replaceAll(
+                        "[\\\\/:*?\"<>|]",
+                        "_"
+                );
+
+        /*
+         * Windows also doesn't allow
+         * trailing spaces or periods.
+         */
+        sanitized = sanitized.replaceAll(
+                "[. ]+$",
+                ""
+        );
+
+        if (sanitized.isBlank()) {
+            return "unknown";
+        }
+
+        return sanitized;
+    }
 }

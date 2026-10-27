@@ -1,13 +1,12 @@
 package org.example.ATS_source.ranking.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.ATS_source.explored.repository.ExploredJobsRepository;
 import org.example.ATS_source.greenhouse.dto.JobSearchRequest;
 import org.example.ATS_source.greenhouse.service.GreenhouseJobService;
 import org.example.ATS_source.llm.LayaService;
 import org.example.ATS_source.model.JobPosting;
-import org.example.ATS_source.ranking.JobRanker;
-import org.example.ATS_source.ranking.JobRole;
-import org.example.ATS_source.ranking.RankedJob;
+import org.example.ATS_source.ranking.*;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +19,7 @@ public class JobRankingController {
     private final GreenhouseJobService greenhouseJobService;
     private final JobRanker jobRanker;
     private final LayaService layaService;
+    private final ExploredJobsRepository exploredJobsRepository;
 
     /*
      * Rank jobs from a specific company.
@@ -108,7 +108,7 @@ public class JobRankingController {
      * Rank matching jobs from all Greenhouse boards.
      */
     @PostMapping("/jobs")
-    public List<?> rankAllJobs(
+    public RankedJobsResponse<?> rankAllJobs(
 
             @RequestParam(defaultValue = "BACKEND")
             JobRole role,
@@ -119,20 +119,15 @@ public class JobRankingController {
             @RequestParam(required = false)
             Integer maxYears,
 
-            /*
-             * Number of ranked jobs to return
-             * when Laya is NOT used.
-             */
+            @RequestParam(defaultValue = "25")
+            int minScore,
+
             @RequestParam(defaultValue = "50")
             int limit,
 
             @RequestParam(defaultValue = "false")
             boolean useLaya,
 
-            /*
-             * Number of top jobs to send to Laya
-             * when Laya IS used.
-             */
             @RequestParam(defaultValue = "100")
             int layaLimit,
 
@@ -143,53 +138,78 @@ public class JobRankingController {
             JobSearchRequest request
     ) {
 
-        /*
-         * STEP 1:
-         * Greenhouse title/location/etc filtering.
-         */
-        List<JobPosting> jobs = greenhouseJobService.searchAllBoardTokens(request);
-
-        /*
-         * STEP 2:
-         * Experience filtering +
-         * backend relevance ranking.
-         */
-        List<RankedJob> rankedJobs = jobRanker
-                .rankJobs(
-                        jobs,
-                        role,
-                        minYears,
-                        maxYears
-                );
+        List<JobPosting> jobs =
+                greenhouseJobService.searchAllBoardTokens(request);
 
 
-        /*
-         * STEP 3:
-         * User doesn't want Laya.
-         */
+        List<RankedJob> rankedJobs =
+                jobRanker
+                        .rankJobs(
+                                jobs,
+                                role,
+                                minYears,
+                                maxYears
+                        )
+                        .stream()
+                        .filter(
+                                rankedJob ->
+                                        rankedJob.score() >= minScore
+                        )
+                        .toList();
+
+
         if (!useLaya) {
-            return rankedJobs
-                    .stream()
-                    .limit(limit)
-                    .toList();
+
+            List<RankedJobResult> result =
+                    rankedJobs
+                            .stream()
+                            .limit(limit)
+                            .map(
+                                    rankedJob ->
+                                            new RankedJobResult(
+                                                    rankedJob.job(),
+                                                    rankedJob.score(),
+                                                    rankedJob.experience(),
+                                                    exploredJobsRepository.isExplored(
+                                                            rankedJob.job()
+                                                    )
+                                            )
+                            )
+                            .toList();
+
+
+            return new RankedJobsResponse<>(
+                    result.size(),
+                    rankedJobs.size(),
+                    limit,
+                    rankedJobs.size() > limit,
+                    result
+            );
         }
 
 
-        /*
-         * STEP 4:
-         * Take only the best ranked jobs
-         * and evaluate those with Laya.
-         */
-        List<JobPosting> jobsForLaya = rankedJobs
-                .stream()
-                .limit(layaLimit)
-                .map(RankedJob::job)
-                .toList();
+        List<JobPosting> jobsForLaya =
+                rankedJobs
+                        .stream()
+                        .limit(layaLimit)
+                        .map(RankedJob::job)
+                        .toList();
 
 
-        return layaService.evaluateJobs(
-                jobsForLaya,
-                matchPercentage
+        List<JobPosting> layaResults =
+                layaService.evaluateJobs(
+                        jobsForLaya,
+                        matchPercentage
+                );
+
+
+        return new RankedJobsResponse<>(
+                layaResults.size(),
+                rankedJobs.size(),
+                layaLimit,
+                rankedJobs.size() > layaLimit,
+                layaResults
         );
     }
+
 }
