@@ -1,4 +1,4 @@
-package org.example.ATS_source.greenhouse.dto;
+package org.example.ATS_source.search;
 
 
 import java.time.OffsetDateTime;

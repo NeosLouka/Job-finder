@@ -1,4 +1,4 @@
-package org.example.ATS_source.greenhouse.service;
+package org.example.ATS_source.search;
 
 import org.example.ATS_source.model.JobPosting;
 import org.springframework.stereotype.Component;
@@ -186,7 +186,7 @@ public class EuropeanCountries {
             );
 
 
-    public boolean isEuropeanLocation(JobPosting job) {
+    public boolean isEuropean(JobPosting job) {
 
         if (job == null) {
             return false;

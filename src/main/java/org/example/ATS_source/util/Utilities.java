@@ -72,8 +72,16 @@ public abstract class Utilities {
         return tokens;
     }
 
-    protected void appendToken(String token, Path output)
-            throws IOException {
+    protected synchronized void appendToken(
+            String token,
+            Path output
+    ) throws IOException {
+
+        if (output.getParent() != null) {
+            Files.createDirectories(
+                    output.getParent()
+            );
+        }
 
         Files.writeString(
                 output,
@@ -96,4 +104,23 @@ public abstract class Utilities {
         return value.replace(" ", "%20");
     }
 
+
+    protected synchronized void rewriteTokens(Set<String> tokens, Path output) throws IOException {
+
+        if (output.getParent() != null) {
+            Files.createDirectories(
+                    output.getParent()
+            );
+        }
+
+        Files.write(
+                output,
+                tokens.stream()
+                        .sorted()
+                        .toList(),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE
+        );
+    }
 }

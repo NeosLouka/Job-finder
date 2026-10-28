@@ -55,12 +55,6 @@ public class GreenhouseTools extends Utilities {
             System.err.println("Failed to pre-load tokens on startup: " + e.getMessage());
         }
 
-        // Group tokens by company
-
-        this.companies.putAll(groupTokensByCompany());
-        System.out.println("Grouped tokens into " + companies.size() + " companies.");
-
-        mergeCompanies();
     }
 
     @Override

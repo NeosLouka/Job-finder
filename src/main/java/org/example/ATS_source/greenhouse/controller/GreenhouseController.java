@@ -1,7 +1,7 @@
 package org.example.ATS_source.greenhouse.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.example.ATS_source.greenhouse.dto.JobSearchRequest;
+import org.example.ATS_source.search.JobSearchRequest;
 import org.example.ATS_source.greenhouse.service.GreenhouseJobService;
 import org.example.ATS_source.llm.LayaService;
 import org.example.ATS_source.model.JobPosting;

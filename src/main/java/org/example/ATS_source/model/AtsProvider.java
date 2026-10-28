@@ -4,5 +4,5 @@ public enum AtsProvider {
     GREENHOUSE,
     ASHBY,
     LEVER,
-    WORKDAY
+    WORKABLE
 }

@@ -4,11 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.example.ATS_source.model.JobPosting;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 
 @Component
@@ -22,24 +20,38 @@ public class JobRanker {
 
         Map<String, JobScoringProfiles.ScoredKeyword> scoringProfile = getScoringProfile(role);
 
-        List<RankedJob> rankedJobs = new ArrayList<>();
+        List<RankedJob> rankedJobs =
+                Collections.synchronizedList(
+                        new ArrayList<>()
+                );
 
-        for (JobPosting job : jobs) {
 
-            ExperienceRequirement experience = experienceRequirementAnalyzer.analyze(job.description());
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
 
-            if (!matchesExperienceRange(experience, minYears, maxYears)) {
-                continue;
+            for (JobPosting job : jobs) {
+
+                executor.submit(() -> {
+
+                    ExperienceRequirement experience =
+                            experienceRequirementAnalyzer.analyze(
+                                    job.description()
+                            );
+
+                    if (!matchesExperienceRange(experience, minYears, maxYears)) {
+                        return;
+                    }
+
+                    int score = calculateScore(job, scoringProfile);
+
+                    rankedJobs.add(
+                            new RankedJob(
+                                    job,
+                                    score,
+                                    experience
+                            )
+                    );
+                });
             }
-
-            int score = calculateScore(job, scoringProfile);
-            rankedJobs.add(
-                    new RankedJob(
-                            job,
-                            score,
-                            experience
-                    )
-            );
         }
 
         rankedJobs.sort(Comparator.comparingInt(RankedJob::score).reversed());

@@ -3,7 +3,9 @@ package org.example.ATS_source.greenhouse.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.ATS_source.greenhouse.boardTokens.GreenhouseTools;
 import org.example.ATS_source.greenhouse.dto.GreenhouseJobsResponse;
-import org.example.ATS_source.greenhouse.dto.JobSearchRequest;
+import org.example.ATS_source.search.EuropeanCountries;
+import org.example.ATS_source.search.JobFilter;
+import org.example.ATS_source.search.JobSearchRequest;
 import org.example.ATS_source.llm.LayaJobMatcher;
 import org.example.ATS_source.model.JobPosting;
 import org.example.candidate.CandidateProfileReader;
@@ -28,12 +30,15 @@ public class GreenhouseJobService {
     private final HttpClient httpClient;
     private final EuropeanCountries europeanCountries;
 
+    private final JobFilter jobFilter;
+
     public GreenhouseJobService(
             ObjectMapper objectMapper,
             GreenhouseTools greenhouseTools,
             LayaJobMatcher layaJobMatcher,
             CandidateProfileReader candidateProfileReader,
-            EuropeanCountries europeanCountries
+            EuropeanCountries europeanCountries,
+            JobFilter jobFilter
     ) {
 
         this.greenhouseTools = greenhouseTools;
@@ -45,6 +50,7 @@ public class GreenhouseJobService {
                 .build();
 
         this.europeanCountries = europeanCountries;
+        this.jobFilter = jobFilter;
     }
 
     /*
@@ -120,7 +126,7 @@ public class GreenhouseJobService {
 
                 JobPosting job = jobDto.toJobPosting(boardToken);
 
-                if (filterJob(job, request)) {
+                if (jobFilter.matches(job, request)) {
                     results.add(job);
                 }
             }
@@ -204,7 +210,7 @@ public class GreenhouseJobService {
             return true;
         }
 
-        if (request.europeOnly() && !europeanCountries.isEuropeanLocation(job)) {
+        if (request.europeOnly() && !europeanCountries.isEuropean(job)) {
 
             return false;
         }
