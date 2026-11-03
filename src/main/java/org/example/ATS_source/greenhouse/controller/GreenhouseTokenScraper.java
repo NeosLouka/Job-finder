@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/greenhouse/tokens")
@@ -45,6 +46,31 @@ public class GreenhouseTokenScraper {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Token discovery job started in the background." + e.getMessage());
+        }
+    }
+
+
+    @PostMapping("/validate")
+    public ResponseEntity<Set<String>> validateExistingTokens() {
+
+        try {
+
+            Set<String> validTokens =
+                    greenhouseTools.validateExistingTokens();
+
+            return ResponseEntity.ok(
+                    validTokens
+            );
+
+        } catch (IOException e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .status(
+                            HttpStatus.INTERNAL_SERVER_ERROR
+                    )
+                    .build();
         }
     }
 }

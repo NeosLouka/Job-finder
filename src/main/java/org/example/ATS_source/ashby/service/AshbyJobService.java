@@ -19,7 +19,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,10 +62,22 @@ public class AshbyJobService {
             JobRole role,
             Integer minYears,
             Integer maxYears
-    ) throws IOException {
+    ) {
 
-        Set<String> boardNames = ashbyTools.retrieveExistingBoardNames();
+        Set<String> boardNames;
 
+        try {
+
+            boardNames =
+                    ashbyTools.retrieveExistingBoardNames();
+
+        } catch (IOException e) {
+
+            throw new RuntimeException(
+                    "Failed to retrieve Ashby board names",
+                    e
+            );
+        }
         List<JobPosting> jobs =
                 Collections.synchronizedList(
                         new ArrayList<>()
@@ -80,9 +91,13 @@ public class AshbyJobService {
 
                 executor.submit(() -> {
 
+                    boolean acquired = false;
+
                     try {
 
                         semaphore.acquire();
+                        acquired = true;
+
 
                         jobs.addAll(
                                 findRequestRelatedJobs(
@@ -101,8 +116,9 @@ public class AshbyJobService {
                         );
                     } finally {
 
-                        semaphore.release();
-                    }
+                        if (acquired) {
+                            semaphore.release();
+                        }                    }
                 });
             }
         }

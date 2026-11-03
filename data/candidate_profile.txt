@@ -1,17 +1,39 @@
-I am a junior software engineer and Computer Science graduate with around one year of professional experience working on backend services and production infrastructure.
+Candidate: Neofytos Louka
 
-My main backend stack is Java and Spring Boot. I have experience building REST APIs, working with PostgreSQL, MySQL and Couchbase, and using Docker and Docker Compose.
+Target: Junior / early-career Backend Developer, Backend Engineer, Software Engineer, or Java Developer roles.
 
-In my current professional experience, I have worked with Linux servers, OVH VPS infrastructure, Traefik, database migrations, automated backups, Docker deployments, restart policies, and basic production troubleshooting.
+Experience:
+- Computer Science graduate
+- 1+ year professional backend development experience
+- Currently working as a Backend Developer
+- Best suited to roughly 0–3 years experience roles
 
-For my Computer Science degree thesis, I designed and implemented a modular-monolith backend using Java, Spring Boot, Spring Modulith, PostgreSQL and Docker. I also worked with Spring Security, JWT, unit testing, application events, Prometheus, Grafana, Zipkin and Spring Boot Actuator.
+Core skills:
+- Java, Spring Boot, Spring Security, Spring Modulith, REST APIs, JWT
+- MySQL, PostgreSQL, Couchbase
+- Docker, Docker Compose, Linux, Git
+- Prometheus, Grafana, Zipkin, Spring Boot Actuator
+- Some AWS/serverless experience: Lambda, API Gateway, DynamoDB, S3, Step Functions
 
-I also have introductory cloud experience with AWS, including Lambda, API Gateway, Step Functions, DynamoDB, S3, EventBridge and SES.
+Professional experience includes:
+- Building and maintaining production Java/Spring Boot APIs
+- Database development and migrations
+- Dockerized deployments
+- Linux/VPS infrastructure
+- Backend service migrations and backups
+- Authentication and security
+- Modular-monolith architecture and application events
 
-My strongest areas are Java backend development, Spring Boot, Docker, Linux, databases and backend/infrastructure engineering.
+Location:
+- Based in Greece
+- EU citizen
+- Open to relocation, especially Ireland
+- Open to EU-compatible remote roles
+- English C2
 
-I am looking primarily for junior or early-career roles in backend engineering, Java development, infrastructure engineering, DevOps, cloud engineering, or related software engineering positions.
+Evaluation:
+Judge whether applying is realistic based mainly on seniority, required professional experience, backend relevance, mandatory skills, and transferable skills.
 
-I am not currently targeting senior, staff, lead, architect, or engineering management roles that require many years of professional experience.
+Do not reject solely because the programming language differs from Java if the role is backend-focused and the skills are transferable.
 
-I am based in Greece and open to relocation. I speak Greek natively and English at C2 proficiency.
+Strongly penalize roles requiring substantially more experience, senior/staff/lead level, or specialized expertise the candidate does not have.

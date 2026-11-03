@@ -1,6 +1,7 @@
 package org.example.ATS_source.greenhouse.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.ATS_source.ranking.*;
 import org.example.ATS_source.search.JobSearchRequest;
 import org.example.ATS_source.greenhouse.service.GreenhouseJobService;
 import org.example.ATS_source.llm.LayaService;
@@ -17,6 +18,104 @@ public class GreenhouseController {
     private final GreenhouseJobService greenhouseJobService;
     private final LayaService layaService;
 
+
+    @PostMapping("/jobs")
+    public RankedJobsResponse<?> rankAllJobs(
+
+            @RequestParam(defaultValue = "BACKEND")
+            JobRole role,
+
+            @RequestParam(required = false)
+            Integer minYears,
+
+            @RequestParam(required = false)
+            Integer maxYears,
+
+            @RequestParam(defaultValue = "25")
+            int minScore,
+
+            @RequestParam(defaultValue = "50")
+            int limit,
+
+            @RequestParam(defaultValue = "false")
+            boolean useLaya,
+
+            @RequestParam(defaultValue = "100")
+            int layaLimit,
+
+            @RequestParam(defaultValue = "65")
+            double matchPercentage,
+
+            @RequestBody
+            JobSearchRequest request
+    ) {
+
+        List<RankedJob> rankedJobs =
+                greenhouseJobService
+                        .filterAndRankAllJobs(
+                                request,
+                                role,
+                                minYears,
+                                maxYears
+                        )
+                        .stream()
+                        .filter(
+                                rankedJob ->
+                                        rankedJob.score() >= minScore
+                        )
+                        .toList();
+
+
+
+        if (!useLaya) {
+
+            List<RankedJobResult> result =
+                    rankedJobs
+                            .stream()
+                            .limit(limit)
+                            .map(
+                                    rankedJob ->
+                                            new RankedJobResult(
+                                                    rankedJob.job(),
+                                                    rankedJob.score(),
+                                                    rankedJob.experience()
+                                            )
+                            )
+                            .toList();
+
+
+            return new RankedJobsResponse<>(
+                    result.size(),
+                    rankedJobs.size(),
+                    limit,
+                    rankedJobs.size() > limit,
+                    result
+            );
+        }
+
+
+        List<RankedJob> jobsForLaya =
+                rankedJobs
+                        .stream()
+                        .limit(layaLimit)
+                        .toList();
+
+
+        List<RankedJob> layaResults =
+                layaService.evaluateJobs(
+                        jobsForLaya,
+                        matchPercentage
+                );
+
+
+        return new RankedJobsResponse<>(
+                layaResults.size(),
+                rankedJobs.size(),
+                layaLimit,
+                rankedJobs.size() > layaLimit,
+                layaResults
+        );
+    }
 
 
 
@@ -56,20 +155,6 @@ public class GreenhouseController {
         return greenhouseJobService.retrieveCompanies();
     }
 
-
-    @PostMapping("/companies/{companyName}/search")
-    public List<JobPosting> evaluateCompany(
-            @PathVariable String companyName,
-            @RequestParam(defaultValue = "65") double matchPercentage,
-            @RequestBody JobSearchRequest request
-    ) {
-
-        return layaService.evaluateCompany(
-                companyName,
-                request,
-                matchPercentage
-        );
-    }
 
     @GetMapping("/locations")
     public Map<String, List<String>> getLocationFormats() {

@@ -41,7 +41,21 @@ public class JobRanker {
                         return;
                     }
 
-                    int score = calculateScore(job, scoringProfile);
+                    int backendScore = calculateScore(
+                            job,
+                            scoringProfile
+                    );
+
+                    int penaltyScore = 0;
+
+                    if (role == JobRole.BACKEND) {
+                        penaltyScore = calculateScore(
+                                job,
+                                JobScoringProfiles.BACKEND_ROLE_PENALTIES
+                        );
+                    }
+
+                    int score = Math.max(0, backendScore - penaltyScore);
 
                     rankedJobs.add(
                             new RankedJob(

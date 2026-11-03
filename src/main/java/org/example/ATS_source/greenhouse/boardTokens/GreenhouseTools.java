@@ -3,6 +3,8 @@ package org.example.ATS_source.greenhouse.boardTokens;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
+import org.example.ATS_source.model.AtsProvider;
+import org.example.ATS_source.util.HttpRetryPolicy;
 import org.example.ATS_source.util.TokenRepository;
 import org.example.ATS_source.util.Utilities;
 import org.springframework.scheduling.annotation.Async;
@@ -16,10 +18,7 @@ import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.regex.Pattern;
 
 @Getter
@@ -84,7 +83,6 @@ public class GreenhouseTools extends Utilities {
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url.toString()))
-                    .timeout(Duration.ofSeconds(60))
                     .header(
                             "User-Agent",
                             "GreenhouseBoardResearch/1.0"
@@ -152,15 +150,19 @@ public class GreenhouseTools extends Utilities {
                         + encodePath(token)
                         + "/jobs";
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(20))
-                .header(
-                        "User-Agent",
-                        "GreenhouseBoardResearch/1.0"
-                )
-                .GET()
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .timeout(
+                                Duration.ofSeconds(20)
+                        )
+                        .header(
+                                "User-Agent",
+                                "GreenhouseBoardResearch/1.0"
+                        )
+                        .GET()
+                        .build();
+
 
         try {
 
@@ -170,29 +172,68 @@ public class GreenhouseTools extends Utilities {
                             HttpResponse.BodyHandlers.ofString()
                     );
 
+
+            if (response.statusCode() == 429) {
+
+                System.err.println(
+                        "RATE LIMITED -> "
+                                + token
+                );
+
+                response =
+                        HttpRetryPolicy.retryPolicy(
+                                CLIENT,
+                                request,
+                                AtsProvider.GREENHOUSE.name()
+                                        + " "
+                                        + token
+                        );
+            }
+
+
             if (response.statusCode() != 200) {
+
+                System.err.println(
+                        "INVALID -> "
+                                + token
+                                + " | HTTP "
+                                + response.statusCode()
+                );
+
                 return false;
             }
 
-            /*
-             * A valid Greenhouse jobs response normally
-             * contains the "jobs" field.
-             */
-            return response.body().contains("\"jobs\"");
 
-        } catch (Exception e) {
+            return response.body()
+                    .contains("\"jobs\"");
+
+
+        } catch (IOException e) {
 
             System.err.println(
                     "Validation failed for "
                             + token
+                            + " | "
+                            + e.getClass().getSimpleName()
                             + ": "
                             + e.getMessage()
             );
 
             return false;
+
+        } catch (InterruptedException e) {
+
+            Thread.currentThread()
+                    .interrupt();
+
+            System.err.println(
+                    "Validation interrupted for "
+                            + token
+            );
+
+            return false;
         }
     }
-
     @Async
     public void findTokens() throws Exception{
 
@@ -375,6 +416,93 @@ public class GreenhouseTools extends Utilities {
 
         companies.putAll(mergedCompanies);
     }
+
+
+    public Set<String> validateExistingTokens() throws IOException {
+
+        Set<String> existingTokens =
+                loadExistingTokens(OUTPUT);
+
+        Set<String> validTokens =
+                ConcurrentHashMap.newKeySet();
+
+        System.out.println(
+                "Validating "
+                        + existingTokens.size()
+                        + " Greenhouse tokens..."
+        );
+
+
+        try (
+                ExecutorService executor =
+                        Executors.newVirtualThreadPerTaskExecutor()
+        ) {
+
+            Semaphore semaphore =
+                    new Semaphore(20);
+
+
+            for (String token : existingTokens) {
+
+                executor.submit(() -> {
+
+                    boolean acquired = false;
+
+                    try {
+
+                        semaphore.acquire();
+                        acquired = true;
+
+                        if (isCurrentlyValid(token)) {
+
+                            validTokens.add(token);
+
+                        } else {
+
+                            System.out.println(
+                                    "INVALID -> "
+                                            + token
+                            );
+                        }
+
+                    } catch (Exception e) {
+
+                        System.err.println(
+                                "Failed validation for "
+                                        + token
+                                        + ": "
+                                        + e.getMessage()
+                        );
+
+                    } finally {
+
+                        if (acquired) {
+                            semaphore.release();
+                        }
+                    }
+                });
+            }
+        }
+
+
+        rewriteTokens(
+                validTokens,
+                OUTPUT
+        );
+
+
+        boardTokens.clear();
+        boardTokens.addAll(validTokens);
+
+
+        System.out.println(
+                "Validation complete. Valid tokens: "
+                        + validTokens.size()
+        );
+
+        return validTokens;
+    }
+
 
     private String getFirstWord(String companyName) {
 

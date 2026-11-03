@@ -39,6 +39,9 @@ public class LayaJobMatcher {
 
             ObjectNode root = objectMapper.createObjectNode();
 
+            root.put("max_len", 4096);
+            root.put("head_max_len", 256);
+
             ObjectNode state = root.putObject("state");
 
             state.put(
@@ -57,12 +60,47 @@ public class LayaJobMatcher {
 
             match.put(
                     "type",
-                    "noul"
+                    "choice"
             );
 
             match.put(
                     "instructions",
-                    "Is this candidate realistically a good enough match for this job to apply?"
+                    """
+                    Evaluate whether this candidate is realistically suitable
+                    enough to apply for this job.
+            
+                    Consider:
+                    - required years of experience
+                    - seniority
+                    - backend/software engineering relevance
+                    - mandatory technical requirements
+                    - transferable skills
+            
+                    Do not consider the candidate a good match if the role
+                    clearly requires substantially more professional experience
+                    or specialized expertise than the candidate has.
+                    """
+            );
+
+            ObjectNode criteria =
+                    match.putObject("criteria");
+
+            criteria.put(
+                    "A",
+                    """
+                    Realistic match. The candidate has appropriate or reasonably
+                    close seniority and enough relevant or transferable skills
+                    that applying for this position makes sense.
+                    """
+            );
+
+            criteria.put(
+                    "B",
+                    """
+                    Poor match. The position requires substantially greater
+                    seniority, mandatory professional experience, or specialized
+                    expertise that the candidate does not have.
+                    """
             );
 
 
@@ -107,8 +145,24 @@ public class LayaJobMatcher {
             double probability =
                     json.path("answers")
                             .path("match")
-                            .path("noul")
+                            .path("probabilities")
+                            .path("A")
                             .asDouble();
+
+            JsonNode usage = json.path("usage");
+
+            System.out.println(
+                    job.title()
+                            + " -> "
+                            + probability
+                            + " | stateTokens="
+                            + usage.path("state_tokens").asInt()
+                            + " | dropped="
+                            + usage.path("state_tokens_dropped").asInt()
+                            + " | truncated="
+                            + usage.path("truncated").asBoolean()
+            );
+
 
 
             return new JobMatchResult(
